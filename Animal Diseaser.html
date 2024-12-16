@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teachable Machine</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+<body>
+  <h1>Leaf Disease detector</h1>
+  <div>
+    <p>Upload an image and let the model predict!</p>
+    <input type="file" id="upload" accept="image/*">
+    <div id="result"></div>
+  </div>
+
+  <script>
+    let model;
+    
+    // Load the model
+    async function loadModel() {
+      try {
+        model = await tf.loadLayersModel('https://raw.githubusercontent.com/Vedpisharody/Animalsss/main/model.json');
+        console.log('Model loaded successfully');
+      } catch (error) {
+        console.error('Error loading model:', error);
+      }
+    }
+
+    // Handle image upload and prediction
+    document.getElementById('upload').addEventListener('change', async function(event) {
+      const file = event.target.files[0];
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+
+      img.onload = async function() {
+        // Prepare image tensor
+        let tensor = tf.browser.fromPixels(img)
+          .resizeNearestNeighbor([224, 224])  // Resize image to model's expected input
+          .toFloat();
+        tensor = tensor.div(tf.scalar(255));  // Normalize the image
+        tensor = tensor.expandDims(0);  // Add batch dimension
+
+        // Make prediction
+        const prediction = await model.predict(tensor);
+
+        // Get the class predictions and their probabilities
+        const predictionArray = prediction.arraySync()[0];  // Convert tensor to array
+        const classes = ['Black Spots Disease', 'Powdery Mildew Disease', 'Rust']; // Replace with your actual class labels
+
+        // Create an array of { className, probability }
+        const results = predictionArray.map((prob, index) => ({
+          className: classes[index], // Class label
+          probability: (prob * 100).toFixed(2) // Convert to percentage
+        }));
+
+        // Sort results by probability in descending order
+        results.sort((a, b) => b.probability - a.probability);
+
+        // Display the results
+        let resultText = '';
+        results.forEach(result => {
+          resultText += `${result.className}: ${result.probability}%<br>`;
+        });
+
+        document.getElementById('result').innerHTML = resultText;
+      };
+    });
+
+    // Load the model when the page loads
+    loadModel();
+  </script>
+</body>
+</html>
